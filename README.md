@@ -1,6 +1,8 @@
 # FSX Dotfiles
 
-Configuración personal de zsh + neovim/lazyvim + herramientas para entorno de desarrollo en Linux (Debian/Ubuntu).
+Configuración personal de desarrollo para Linux — multi-distro.
+
+**Distros soportadas:** Arch / CachyOS / EndeavourOS · Fedora · Debian / Ubuntu
 
 ## Stack
 
@@ -14,13 +16,15 @@ Configuración personal de zsh + neovim/lazyvim + herramientas para entorno de d
 | **btop** | `top` con interfaz visual |
 | **fzf** | Búsqueda fuzzy |
 | **zoxide** | `cd` inteligente con historial |
+| **fd** | `find` más rápido, respeta `.gitignore` |
+| **ripgrep** | `grep` ultrarrápido |
 | **zsh-autosuggestions** | Sugerencias inline del historial |
 | **zsh-syntax-highlighting** | Colores en tiempo real al escribir |
-| **zsh-completions** | Completados extra para brew |
+| **zsh-completions** | Completados extra |
 | **kitty** | Terminal con tema Kanagawa |
 | **fastfetch** | Info del sistema al iniciar |
 
-## Instalación rápida
+## Instalación
 
 ```bash
 git clone git@github.com:felix73sanchez/dotfiles.git ~/dotfiles
@@ -30,20 +34,34 @@ chmod +x install.sh
 exec zsh
 ```
 
-> El script instala Homebrew automáticamente si no está presente.  
-> Requiere `sudo` para `apt` y `chsh`.  
+El script detecta tu distro automáticamente y usa el package manager nativo:
+
+| Distro | Package Manager | Notas |
+|---|---|---|
+| Arch / CachyOS / EndeavourOS | `pacman` + `paru` (AUR) | Todo desde repos nativos |
+| Fedora | `dnf` | Todo desde repos nativos |
+| Debian / Ubuntu | `apt` + Homebrew | Homebrew para paquetes actualizados |
+
+> Requiere `sudo` para instalar paquetes y `chsh`.
 > Neovim abre y lazy.nvim instala todos los plugins automáticamente en el primer inicio.
 
 ## Estructura
 
 ```
 dotfiles/
-├── install.sh                    # Bootstrap completo
+├── install.sh                        # Bootstrap multi-distro
+├── lib/
+│   ├── detect.sh                     # Detección de distro
+│   └── utils.sh                      # Funciones comunes (log, backup, symlink)
 ├── zsh/
-│   └── .zshrc                    # Config principal de zsh
+│   ├── .zshrc                        # Config unificada (detecta distro)
+│   └── distro/
+│       ├── arch.zsh                  # Aliases pacman/paru, pkgfile
+│       ├── fedora.zsh                # Aliases dnf
+│       └── debian.zsh                # Aliases apt, flatpak
 ├── oh-my-posh/
-│   └── probua.minimal.omp.json   # Tema del prompt
-├── nvim/                         # Config de Neovim (LazyVim)
+│   └── probua.minimal.omp.json       # Tema del prompt
+├── nvim/                             # Config de Neovim (LazyVim)
 │   ├── init.lua
 │   ├── lazyvim.json
 │   ├── lazy-lock.json
@@ -57,41 +75,73 @@ dotfiles/
 │       └── plugins/
 │           └── example.lua
 ├── kitty/
-│   ├── kitty.conf                # Config de la terminal
-│   └── kanagawa.conf             # Tema de colores (Kanagawa)
+│   ├── kitty.conf                    # Config de la terminal
+│   └── kanagawa.conf                 # Tema de colores (Kanagawa)
 └── fastfetch/
-    └── config.jsonc              # Módulos del sistema info
+    └── config.jsonc                  # Módulos del sistema info
 ```
+
+## Cómo funciona
+
+### Un solo `.zshrc` — cero duplicación
+
+El `.zshrc` detecta la distro via `/etc/os-release` y carga el módulo correspondiente:
+
+```zsh
+# Detección automática → carga arch.zsh, fedora.zsh o debian.zsh
+_fsx_distro_id=$(grep -oP '^ID=\K\w+' /etc/os-release 2>/dev/null)
+case "$_fsx_distro_id" in
+  arch|cachyos|endeavouros) _fsx_distro_family="arch"   ;;
+  fedora)                   _fsx_distro_family="fedora"  ;;
+  debian|ubuntu|pop)        _fsx_distro_family="debian"  ;;
+esac
+source "$DOTFILES_DIR/zsh/distro/${_fsx_distro_family}.zsh"
+```
+
+### Plugins con resolución multi-path
+
+Los plugins de zsh se buscan automáticamente en las rutas de cada distro:
+
+```zsh
+_source_plugin zsh-autosuggestions
+# Busca en: /usr/share/zsh/plugins/ (Arch)
+#           /usr/share/ (Fedora)
+#           $HOMEBREW_PREFIX/opt/ (Homebrew)
+#           ~/.local/share/zsh/plugins/ (manual)
+```
+
+### Symlinks en vez de copias
+
+`install.sh` crea symlinks — los cambios en el repo se reflejan inmediatamente sin re-ejecutar nada.
 
 ## Lo que configura `.zshrc`
 
-### Orden de carga (importante)
+### Orden de carga
 
 ```
-PATH → brew → fpath (zsh-completions) → compinit → plugins → oh-my-posh → ...
+XDG dirs → distro detect → PATH → brew (si existe) → fpath → compinit → plugins → oh-my-posh → ...
 ```
-
-`zsh-completions` debe estar en `fpath` **antes** de `compinit`, de lo contrario los completados no cargan.
 
 ### Historial
-- 50,000 líneas, compartido entre sesiones
-- Sin duplicados, con timestamps
+- 50,000 líneas en `$XDG_STATE_HOME/zsh/history`
+- Sin duplicados, con timestamps, verificación antes de ejecutar
 
 ### Autocompletado
 - Menú interactivo con TAB
 - Case-insensitive + matching inteligente
-- Cache en `~/.zsh/cache`
+- Cache en `$XDG_CACHE_HOME/zsh/compcache`
 
 ### Keybindings
 | Tecla | Acción |
 |---|---|
-| `↑ / ↓` | Buscar historial por prefijo |
+| `↑ / ↓` | Buscar historial por prefijo (o substring si el plugin está cargado) |
 | `Ctrl+R` | Búsqueda incremental |
 | `Ctrl+Space` | Aceptar sugerencia inline |
 | `Ctrl+→ / ←` | Mover por palabras |
 | `Ctrl+H` | Borrar palabra anterior |
+| `Ctrl+X Ctrl+E` | Editar comando en `$EDITOR` |
 
-### Aliases destacados
+### Aliases comunes (todas las distros)
 ```zsh
 ls / ll / la / lt / lsize    # lsd variants
 tree / tree2                 # lsd --tree
@@ -99,11 +149,17 @@ vi                           # nvim
 cat                          # bat (si instalado)
 top                          # btop (si instalado)
 gs / ga / gc / gp / gl      # git shortcuts
+ss-start / ss-stop / ...    # systemd shortcuts
 mirtha                       # ssh fsxserver@10.0.0.73
-actualizar                   # apt update + upgrade
 reload                       # source ~/.zshrc
-apagar                       # sudo shutdown -h now
+apagar / reiniciar           # shutdown / reboot
 ```
+
+### Aliases por distro
+
+**Arch/CachyOS:** `actualizar` (paru -Syu), `instalar`, `buscar`, `desinstalar`, `pac*`, `mirrors`
+**Fedora:** `actualizar` (dnf upgrade), `instalar`, `buscar`, `desinstalar`, `dnf*`
+**Debian:** `actualizar` (apt update+upgrade), `instalar`, `buscar`, `desinstalar`, `purgar`, `apt*`
 
 ### Funciones
 ```zsh
@@ -113,58 +169,19 @@ gclone <url>    # git clone + cd
 bak <file>      # copia .bak
 whichport <n>   # qué proceso usa el puerto
 extract <file>  # descomprimir cualquier formato
+whatpkg <cmd>   # qué paquete provee un comando (solo Arch)
+pacnews         # buscar .pacnew/.pacsave (solo Arch)
 ```
 
 ## Neovim / LazyVim
 
 Config basada en el starter de [LazyVim](https://lazyvim.org). Los plugins se instalan automáticamente al abrir nvim por primera vez.
 
-**Requisitos adicionales para nvim:**
-```bash
-# Para Mason/LSP (instalados via mason dentro de nvim):
-# stylua, shellcheck, shfmt, flake8
-# Se instalan automáticamente al abrir nvim
-```
-
-## Instalación manual (paso a paso)
-
-```bash
-# 1. Homebrew
-NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-
-# 2. Paquetes
-brew install oh-my-posh lsd neovim bat btop fzf zoxide \
-             zsh-autosuggestions zsh-syntax-highlighting zsh-completions
-
-# 3. zsh por defecto
-chsh -s $(which zsh)
-
-# 4. .zshrc
-cp zsh/.zshrc ~/.zshrc
-mkdir -p ~/.zsh/cache
-
-# 5. oh-my-posh theme
-mkdir -p ~/.cache/oh-my-posh/themes
-cp oh-my-posh/probua.minimal.omp.json ~/.cache/oh-my-posh/themes/
-
-# 6. Neovim
-cp -r nvim ~/.config/nvim
-
-# 7. (Opcional) Kitty
-cp kitty/kitty.conf ~/.config/kitty/kitty.conf
-cp kitty/kanagawa.conf ~/.config/kitty/current-theme.conf
-
-# 8. (Opcional) Fastfetch
-mkdir -p ~/.config/fastfetch
-cp fastfetch/config.jsonc ~/.config/fastfetch/
-
-exec zsh
-```
-
 ## Notas
 
-- Rutas de plugins usan `$HOMEBREW_PREFIX` — funciona en Linux y macOS.
-- El prompt oh-my-posh requiere una **Nerd Font** (e.g. JetBrainsMono Nerd Font).
+- Los configs usan **XDG Base Directories** — nada se escribe fuera de `~/.config`, `~/.cache`, `~/.local`.
+- Rutas de plugins se resuelven automáticamente sin importar el package manager.
+- El prompt oh-my-posh requiere una **Nerd Font** (e.g. JetBrainsMono Nerd Font) — el instalador ofrece descargarla.
 - `bun` se configura automáticamente si está instalado en `~/.bun`.
 - `zoxide` reemplaza `cd` con navegación inteligente por historial.
+- Homebrew **solo se instala en Debian/Ubuntu** como fallback para paquetes actualizados.

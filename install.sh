@@ -1,123 +1,234 @@
 #!/usr/bin/env bash
-# install.sh — FSX dotfiles bootstrap
-# Tested on: Ubuntu 24.04 / Debian-based distros
-set -e
+# install.sh — FSX dotfiles bootstrap (multi-distro)
+# Supports: Arch/CachyOS, Fedora, Debian/Ubuntu
+set -euo pipefail
 
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
+source "$DOTFILES_DIR/lib/utils.sh"
+source "$DOTFILES_DIR/lib/detect.sh"
 
-info()    { echo -e "${GREEN}[+]${NC} $1"; }
-warn()    { echo -e "${YELLOW}[!]${NC} $1"; }
-error()   { echo -e "${RED}[x]${NC} $1"; exit 1; }
-confirm() { read -rp "$1 [y/N] " r; [[ "$r" =~ ^[Yy]$ ]]; }
+# ─── PACKAGE LISTS ──────────────────────────────────────────
 
-backup() {
-  local file="$1"
-  if [[ -e "$file" ]]; then
-    warn "Backup: $file → $file.bak"
-    cp -r "$file" "$file.bak"
-  fi
-}
-
-# ─── 1. DEPENDENCIAS APT ────────────────────────────────────────────────────
-info "Actualizando apt..."
-sudo apt update -qq
-
-APT_PKGS=(zsh curl git build-essential unzip)
-for pkg in "${APT_PKGS[@]}"; do
-  dpkg -s "$pkg" &>/dev/null || sudo apt install -y "$pkg"
-done
-
-# ─── 2. HOMEBREW (LINUXBREW) ────────────────────────────────────────────────
-if ! command -v brew &>/dev/null; then
-  info "Instalando Homebrew..."
-  NONINTERACTIVE=1 /bin/bash -c \
-    "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-fi
-
-# Activar brew en esta sesión
-if [[ -f /home/linuxbrew/.linuxbrew/bin/brew ]]; then
-  eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-elif [[ -f /opt/homebrew/bin/brew ]]; then
-  eval "$(/opt/homebrew/bin/brew shellenv)"
-else
-  error "Homebrew instalado pero no encontrado. Reinicia el script."
-fi
-
-info "Brew: $(brew --version | head -1)"
-
-# ─── 3. PAQUETES BREW ───────────────────────────────────────────────────────
-BREW_PKGS=(
-  oh-my-posh
-  lsd
-  neovim
-  bat
-  btop
-  fzf
-  zoxide
-  zsh-autosuggestions
-  zsh-syntax-highlighting
-  zsh-completions
+PACMAN_PKGS=(
+  zsh curl git base-devel unzip
+  lsd neovim bat btop fzf zoxide fd ripgrep fastfetch
+  zsh-autosuggestions zsh-syntax-highlighting zsh-completions
+  zsh-history-substring-search
+  pkgfile
 )
 
-info "Instalando paquetes brew..."
-for pkg in "${BREW_PKGS[@]}"; do
-  brew list "$pkg" &>/dev/null \
-    && warn "$pkg ya instalado, omitiendo." \
-    || brew install "$pkg"
-done
+DNF_PKGS=(
+  zsh curl git gcc make unzip util-linux-user
+  lsd neovim bat btop fzf zoxide fd-find ripgrep fastfetch
+  zsh-autosuggestions zsh-syntax-highlighting
+)
 
-# ─── 4. ZSH COMO SHELL POR DEFECTO ──────────────────────────────────────────
-ZSH_PATH="$(which zsh)"
-if [[ "$SHELL" != "$ZSH_PATH" ]]; then
-  info "Cambiando shell a zsh ($ZSH_PATH)..."
-  grep -qx "$ZSH_PATH" /etc/shells || echo "$ZSH_PATH" | sudo tee -a /etc/shells
-  chsh -s "$ZSH_PATH"
-fi
+APT_PKGS=(
+  zsh curl git build-essential unzip
+)
 
-# ─── 5. .ZSHRC ──────────────────────────────────────────────────────────────
-backup "$HOME/.zshrc"
-info "Copiando .zshrc..."
-cp "$DOTFILES_DIR/zsh/.zshrc" "$HOME/.zshrc"
-mkdir -p "$HOME/.zsh/cache"
+BREW_PKGS=(
+  lsd neovim bat btop fzf zoxide fd ripgrep fastfetch
+  zsh-autosuggestions zsh-syntax-highlighting zsh-completions
+)
 
-# ─── 6. OH-MY-POSH THEME ────────────────────────────────────────────────────
-THEME_DIR="$HOME/.cache/oh-my-posh/themes"
-mkdir -p "$THEME_DIR"
-info "Copiando tema oh-my-posh (probua.minimal)..."
-cp "$DOTFILES_DIR/oh-my-posh/probua.minimal.omp.json" "$THEME_DIR/probua.minimal.omp.json"
+# ─── MAIN ───────────────────────────────────────────────────
 
-# ─── 7. NEOVIM (LAZYVIM) ────────────────────────────────────────────────────
-NVIM_CONFIG="$HOME/.config/nvim"
-if [[ -d "$NVIM_CONFIG" ]]; then
-  warn "~/.config/nvim existe — guardando backup en ~/.config/nvim.bak"
-  backup "$NVIM_CONFIG"
-fi
-info "Copiando config de Neovim/LazyVim..."
-cp -r "$DOTFILES_DIR/nvim" "$NVIM_CONFIG"
+main() {
+  echo ""
+  info "FSX Dotfiles — Bootstrap"
+  info "========================"
+  echo ""
 
-# ─── 8. KITTY (OPCIONAL) ────────────────────────────────────────────────────
-if command -v kitty &>/dev/null || confirm "Kitty no detectado. ¿Copiar config de todos modos?"; then
-  KITTY_DIR="$HOME/.config/kitty"
-  backup "$KITTY_DIR/kitty.conf"
-  mkdir -p "$KITTY_DIR"
-  cp "$DOTFILES_DIR/kitty/kitty.conf"    "$KITTY_DIR/kitty.conf"
-  cp "$DOTFILES_DIR/kitty/kanagawa.conf" "$KITTY_DIR/current-theme.conf"
-  info "Kitty config copiado."
-fi
+  detect_distro
+  echo ""
 
-# ─── 9. FASTFETCH (OPCIONAL) ────────────────────────────────────────────────
-if command -v fastfetch &>/dev/null || confirm "Fastfetch no detectado. ¿Copiar config de todos modos?"; then
-  FF_DIR="$HOME/.config/fastfetch"
-  mkdir -p "$FF_DIR"
-  cp "$DOTFILES_DIR/fastfetch/config.jsonc" "$FF_DIR/config.jsonc"
-  info "Fastfetch config copiado."
-fi
+  install_packages
+  install_oh_my_posh
+  set_default_shell
+  create_symlinks
+  install_nerd_font
 
-# ─── LISTO ──────────────────────────────────────────────────────────────────
-echo ""
-echo -e "${GREEN}╔══════════════════════════════════════════════════╗${NC}"
-echo -e "${GREEN}║   Instalación completa.                          ║${NC}"
-echo -e "${GREEN}║   1. Abre nvim → lazy.nvim instala plugins solo  ║${NC}"
-echo -e "${GREEN}║   2. Ejecuta: exec zsh                           ║${NC}"
-echo -e "${GREEN}╚══════════════════════════════════════════════════╝${NC}"
+  echo ""
+  echo -e "${GREEN}╔══════════════════════════════════════════════════╗${NC}"
+  echo -e "${GREEN}║   Instalación completa.                          ║${NC}"
+  echo -e "${GREEN}║   1. Abrí nvim → lazy.nvim instala plugins solo  ║${NC}"
+  echo -e "${GREEN}║   2. Ejecutá: exec zsh                           ║${NC}"
+  echo -e "${GREEN}║   3. Configurá la Nerd Font en tu terminal       ║${NC}"
+  echo -e "${GREEN}╚══════════════════════════════════════════════════╝${NC}"
+}
+
+# ─── INSTALL PACKAGES ──────────────────────────────────────
+
+install_packages() {
+  case "$DISTRO_FAMILY" in
+    arch)
+      info "Instalando paquetes via pacman..."
+      sudo pacman -S --needed --noconfirm "${PACMAN_PKGS[@]}"
+
+      # paru para AUR
+      if ! command -v paru &>/dev/null; then
+        warn "paru no encontrado — paquetes AUR no disponibles"
+        warn "Instalar paru: https://github.com/Morganamilo/paru"
+      fi
+
+      # Actualizar pkgfile database para command-not-found
+      if command -v pkgfile &>/dev/null; then
+        info "Actualizando base de datos pkgfile..."
+        sudo pkgfile --update
+      fi
+      ;;
+
+    fedora)
+      info "Instalando paquetes via dnf..."
+      sudo dnf install -y "${DNF_PKGS[@]}"
+      ;;
+
+    debian)
+      info "Instalando paquetes base via apt..."
+      sudo apt update -qq
+      sudo apt install -y "${APT_PKGS[@]}"
+
+      install_homebrew
+
+      info "Instalando paquetes via brew..."
+      for pkg in "${BREW_PKGS[@]}"; do
+        brew list "$pkg" &>/dev/null \
+          && warn "$pkg ya instalado, omitiendo." \
+          || brew install "$pkg"
+      done
+      ;;
+  esac
+}
+
+install_homebrew() {
+  if command -v brew &>/dev/null; then
+    warn "Homebrew ya instalado"
+    return
+  fi
+
+  info "Instalando Homebrew (necesario para paquetes actualizados en Debian)..."
+  NONINTERACTIVE=1 /bin/bash -c \
+    "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+  # Activar brew en esta sesión
+  if [[ -f /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+    eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+  elif [[ -f /opt/homebrew/bin/brew ]]; then
+    eval "$(/opt/homebrew/bin/brew shellenv)"
+  else
+    error "Homebrew instalado pero no encontrado"
+  fi
+
+  info "Brew: $(brew --version | head -1)"
+}
+
+# ─── OH-MY-POSH ────────────────────────────────────────────
+
+install_oh_my_posh() {
+  if command -v oh-my-posh &>/dev/null; then
+    warn "oh-my-posh ya instalado"
+    return
+  fi
+
+  case "$DISTRO_FAMILY" in
+    arch)
+      if command -v paru &>/dev/null; then
+        info "Instalando oh-my-posh via paru (AUR)..."
+        paru -S --noconfirm oh-my-posh-bin
+      else
+        info "Instalando oh-my-posh via script oficial..."
+        curl -s https://ohmyposh.dev/install.sh | bash -s
+      fi
+      ;;
+    debian)
+      # En Debian ya tenemos brew
+      info "Instalando oh-my-posh via brew..."
+      brew install oh-my-posh
+      ;;
+    *)
+      info "Instalando oh-my-posh via script oficial..."
+      curl -s https://ohmyposh.dev/install.sh | bash -s
+      ;;
+  esac
+}
+
+# ─── ZSH DEFAULT SHELL ─────────────────────────────────────
+
+set_default_shell() {
+  local zsh_path
+  zsh_path="$(command -v zsh)"
+
+  if [[ "$SHELL" == "$zsh_path" ]]; then
+    warn "zsh ya es la shell por defecto"
+    return
+  fi
+
+  info "Configurando zsh como shell por defecto ($zsh_path)..."
+  grep -qx "$zsh_path" /etc/shells || echo "$zsh_path" | sudo tee -a /etc/shells
+  chsh -s "$zsh_path"
+}
+
+# ─── SYMLINKS ──────────────────────────────────────────────
+
+create_symlinks() {
+  info "Creando symlinks..."
+
+  # .zshrc
+  make_symlink "$DOTFILES_DIR/zsh/.zshrc" "$HOME/.zshrc"
+
+  # Neovim
+  mkdir -p "$HOME/.config"
+  make_symlink "$DOTFILES_DIR/nvim" "$HOME/.config/nvim"
+
+  # Kitty (opcional)
+  if command -v kitty &>/dev/null || confirm "Kitty no detectado. ¿Crear symlinks de todos modos?"; then
+    mkdir -p "$HOME/.config/kitty"
+    make_symlink "$DOTFILES_DIR/kitty/kitty.conf"    "$HOME/.config/kitty/kitty.conf"
+    make_symlink "$DOTFILES_DIR/kitty/kanagawa.conf" "$HOME/.config/kitty/current-theme.conf"
+  fi
+
+  # Fastfetch (opcional)
+  if command -v fastfetch &>/dev/null || confirm "Fastfetch no detectado. ¿Crear symlink de todos modos?"; then
+    mkdir -p "$HOME/.config/fastfetch"
+    make_symlink "$DOTFILES_DIR/fastfetch/config.jsonc" "$HOME/.config/fastfetch/config.jsonc"
+  fi
+
+  # Crear directorios XDG para zsh
+  mkdir -p "$HOME/.cache/zsh"
+  mkdir -p "$HOME/.local/state/zsh"
+}
+
+# ─── NERD FONT ─────────────────────────────────────────────
+
+install_nerd_font() {
+  local font_dir="$HOME/.local/share/fonts"
+
+  if fc-list 2>/dev/null | grep -qi "JetBrainsMono.*Nerd"; then
+    warn "JetBrainsMono Nerd Font ya instalada"
+    return
+  fi
+
+  if ! confirm "¿Instalar JetBrainsMono Nerd Font? (requerida para oh-my-posh)"; then
+    warn "Omitiendo Nerd Font — oh-my-posh puede mostrar caracteres rotos"
+    return
+  fi
+
+  info "Descargando JetBrainsMono Nerd Font..."
+  local version="v3.3.0"
+  local url="https://github.com/ryanoasis/nerd-fonts/releases/download/$version/JetBrainsMono.zip"
+  local tmp
+  tmp=$(mktemp -d)
+
+  curl -fsSL "$url" -o "$tmp/JetBrainsMono.zip"
+  mkdir -p "$font_dir/JetBrainsMono"
+  unzip -qo "$tmp/JetBrainsMono.zip" -d "$font_dir/JetBrainsMono"
+  fc-cache -f "$font_dir" >/dev/null 2>&1
+  rm -rf "$tmp"
+
+  info "JetBrainsMono Nerd Font instalada"
+}
+
+# ─── RUN ────────────────────────────────────────────────────
+
+main "$@"

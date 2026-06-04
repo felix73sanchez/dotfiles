@@ -1,34 +1,108 @@
 {
   "$schema": "https://github.com/fastfetch-cli/fastfetch/raw/master/doc/json_schema.json",
+  "logo": {
+    "padding": {
+      "right": 2,
+      "top": 1
+    }
+  },
+  "display": {
+    "separator": "  ",
+    "color": {
+      "keys": "blue",
+      "separator": "90"
+    },
+    "key": {
+      "type": "both",
+      "width": 20
+    }
+  },
   "modules": [
     "title",
     "separator",
-    "os",
-    "host",
-    "kernel",
-    "uptime",
-    "packages",
-    "shell",
-    "display",
-    "de",
-    "wm",
-    "wmtheme",
-    "theme",
-    "icons",
-    "font",
-    "cursor",
-    "terminal",
-    "terminalfont",
-    "cpu",
-    "gpu",
-    "memory",
-    "swap",
-    "disk",
-    "localip",
-    "battery",
-    "poweradapter",
-    "locale",
+    {
+      "type": "os",
+      "key": "OS"
+    },
+    {
+      "type": "host",
+      "key": "Host"
+    },
+    {
+      "type": "kernel",
+      "key": "Kernel"
+    },
+    {
+      "type": "uptime",
+      "key": "Uptime"
+    },
     "break",
-    "colors"
+    {
+      "type": "packages",
+      "key": "Packages"
+    },
+    {
+      "type": "shell",
+      "key": "Shell"
+    },
+    {
+      "type": "terminal",
+      "key": "Terminal"
+    },
+    "break",
+    {
+      "type": "display",
+      "key": "Display",
+      "compactType": "original-with-refresh-rate"
+    },
+    {
+      "type": "de",
+      "key": "DE"
+    },
+    {
+      "type": "wm",
+      "key": "WM"
+    },
+    {
+      "type": "theme",
+      "key": "Theme"
+    },
+    "break",
+    {
+      "type": "cpu",
+      "key": "CPU",
+      "showPeCoreCount": true,
+      "temp": true
+    },
+    {
+      "type": "gpu",
+      "key": "GPU",
+      "temp": true
+    },
+    {
+      "type": "memory",
+      "key": "Memory"
+    },
+    {
+      "type": "disk",
+      "key": "Disk",
+      "folders": "/"
+    },
+    "break",
+    {
+      "type": "localip",
+      "key": "Network",
+      "compact": true,
+      "showIpv6": false
+    },
+    {
+      "type": "locale",
+      "key": "Locale"
+    },
+    "break",
+    {
+      "type": "colors",
+      "symbol": "circle"
+    }
   ]
 }
