@@ -1,0 +1,24 @@
+# ============================================================
+# Local overrides — NOT tracked by git
+# Copy this file to local.zsh and customize:
+#   cp local.zsh.example local.zsh
+# ============================================================
+
+# ─── Personal aliases ───────────────────────────────────────
+# alias myserver='ssh user@192.168.1.100'
+# alias work='ssh deploy@production.example.com'
+
+# ─── Extra PATH entries ─────────────────────────────────────
+# export PATH="$HOME/.cargo/bin:$PATH"
+# export PATH="$HOME/go/bin:$PATH"
+
+# ─── Flatpak apps ──────────────────────────────────────────
+# command -v flatpak &>/dev/null && alias code='flatpak run com.visualstudio.code'
+
+# ─── Environment overrides ──────────────────────────────────
+# export EDITOR="vim"
+# export GPG_TTY=$(tty)
+
+# ─── Work-specific config ───────────────────────────────────
+# export KUBECONFIG="$HOME/.kube/config"
+# export AWS_PROFILE="default"

@@ -411,6 +411,12 @@ if [[ -d "$HOME/.bun" ]]; then
 fi
 
 # ============================================================
+# LOCAL OVERRIDES — personal config not tracked by git
+# Copy zsh/local.zsh.example → zsh/local.zsh to customize
+# ============================================================
+[[ -f "$DOTFILES_DIR/zsh/local.zsh" ]] && source "$DOTFILES_DIR/zsh/local.zsh"
+
+# ============================================================
 # ZSH-SYNTAX-HIGHLIGHTING — SIEMPRE AL FINAL
 # Debe cargarse después de todo lo que registra widgets ZLE (fzf, etc.)
 # ============================================================

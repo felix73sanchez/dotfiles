@@ -16,9 +16,6 @@ alias aptl='dpkg -l'
 alias aptclean='sudo apt autoremove -y && sudo apt autoclean'
 alias aptfix='sudo apt --fix-broken install'
 
-# VSCode via flatpak (common on Debian/Ubuntu)
-command -v flatpak &>/dev/null && alias code='flatpak run com.visualstudio.code'
-
 # ─── command-not-found ──────────────────────────────────────
 
 if [[ -f /etc/zsh_command_not_found ]]; then
