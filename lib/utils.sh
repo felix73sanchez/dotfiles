@@ -19,8 +19,10 @@ confirm() {
 backup() {
   local file="$1"
   if [[ -e "$file" && ! -L "$file" ]]; then
-    warn "Backup: $file → $file.bak"
-    cp -r "$file" "$file.bak"
+    local ts
+    ts="$(date +%Y%m%d-%H%M%S)"
+    warn "Backup: $file → $file.bak.$ts"
+    cp -r "$file" "$file.bak.$ts"
   fi
 }
 

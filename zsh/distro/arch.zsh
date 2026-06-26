@@ -32,7 +32,15 @@ alias pacqi='pacman -Qi'
 alias pacql='pacman -Ql'
 alias pacown='pacman -Qo'
 alias pacorph='pacman -Qtdq'
-alias pacclean='sudo pacman -Rns $(pacman -Qtdq)'
+pacclean() {
+  local orphs
+  orphs=$(pacman -Qtdq 2>/dev/null)
+  if [[ -n "$orphs" ]]; then
+    echo "$orphs" | sudo pacman -Rns -
+  else
+    echo "No orphan packages found."
+  fi
+}
 alias paccache='sudo paccache -rk2'
 alias paclog='grep -i "installed\|upgraded\|removed" /var/log/pacman.log | tail -30'
 

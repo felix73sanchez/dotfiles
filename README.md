@@ -34,6 +34,16 @@ chmod +x install.sh
 exec zsh
 ```
 
+### Flags del instalador
+
+| Comando | Efecto |
+|---|---|
+| `./install.sh` | Instala todo (por defecto) |
+| `./install.sh --dry-run` | Muestra qué haría sin ejecutar nada |
+| `./install.sh --uninstall` | Elimina los symlinks creados |
+| `./install.sh --doctor` | Verifica la salud de la instalación |
+| `./install.sh --help` | Muestra el uso |
+
 El script detecta tu distro automáticamente y usa el package manager nativo:
 
 | Distro | Package Manager | Notas |
@@ -73,9 +83,8 @@ dotfiles/
 │       │   ├── lazy.lua
 │       │   └── options.lua
 │       └── plugins/
-│           └── example.lua
 ├── kitty/
-│   ├── kitty.conf                    # Config de la terminal
+│   ├── kitty.conf                    # Config de la terminal (JetBrainsMono Nerd Font)
 │   └── kanagawa.conf                 # Tema de colores (Kanagawa)
 └── fastfetch/
     └── config.jsonc                  # Módulos del sistema info
@@ -113,6 +122,7 @@ _source_plugin zsh-autosuggestions
 ### Symlinks en vez de copias
 
 `install.sh` crea symlinks — los cambios en el repo se reflejan inmediatamente sin re-ejecutar nada.
+Si ya existe un archivo en el destino, se crea un backup con timestamp (`.bak.YYYYMMDD-HHMMSS`) para evitar sobreescrituras.
 
 ## Lo que configura `.zshrc`
 
@@ -150,7 +160,7 @@ cat                          # bat (si instalado)
 top                          # btop (si instalado)
 gs / ga / gc / gp / gl      # git shortcuts
 ss-start / ss-stop / ...    # systemd shortcuts
-mirtha                       # ssh fsxserver@10.0.0.73
+rmd                          # rm -rfI (con -I para confirmación interactiva)
 reload                       # source ~/.zshrc
 apagar / reiniciar           # shutdown / reboot
 ```
@@ -158,6 +168,7 @@ apagar / reiniciar           # shutdown / reboot
 ### Aliases por distro
 
 **Arch/CachyOS:** `actualizar` (paru -Syu), `instalar`, `buscar`, `desinstalar`, `pac*`, `mirrors`
+> `pacclean` es una función que verifica si hay paquetes huérfanos antes de intentar eliminarlos.
 **Fedora:** `actualizar` (dnf upgrade), `instalar`, `buscar`, `desinstalar`, `dnf*`
 **Debian:** `actualizar` (apt update+upgrade), `instalar`, `buscar`, `desinstalar`, `purgar`, `apt*`
 
@@ -181,7 +192,7 @@ Config basada en el starter de [LazyVim](https://lazyvim.org). Los plugins se in
 
 - Los configs usan **XDG Base Directories** — nada se escribe fuera de `~/.config`, `~/.cache`, `~/.local`.
 - Rutas de plugins se resuelven automáticamente sin importar el package manager.
-- El prompt oh-my-posh requiere una **Nerd Font** (e.g. JetBrainsMono Nerd Font) — el instalador ofrece descargarla.
+- El prompt oh-my-posh requiere una **Nerd Font** (e.g. JetBrainsMono Nerd Font) — el instalador ofrece descargarla y auto-detecta la última versión desde GitHub (fallback: v3.3.0).
 - `bun` se configura automáticamente si está instalado en `~/.bun`.
 - `zoxide` reemplaza `cd` con navegación inteligente por historial.
 - Homebrew **solo se instala en Debian/Ubuntu** como fallback para paquetes actualizados.

@@ -28,6 +28,22 @@ export XDG_DATA_HOME="${XDG_DATA_HOME:-$HOME/.local/share}"
 export XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
 
 # ============================================================
+# PROMPT ENGINE — selector escrito por install.sh
+#   omp  = oh-my-posh (default) | p10k = powerlevel10k
+# ============================================================
+_fsx_prompt_engine="omp"
+[[ -r "$XDG_CONFIG_HOME/zsh/prompt-engine" ]] && \
+  read -r _fsx_prompt_engine < "$XDG_CONFIG_HOME/zsh/prompt-engine"
+
+# powerlevel10k instant prompt — debe ir lo más temprano posible.
+# Inofensivo si el cache no existe (usuarios de oh-my-posh).
+if [[ "$_fsx_prompt_engine" == "p10k" ]]; then
+  _p10k_instant="$XDG_CACHE_HOME/p10k-instant-prompt-${(%):-%n}.zsh"
+  [[ -r "$_p10k_instant" ]] && source "$_p10k_instant"
+  unset _p10k_instant
+fi
+
+# ============================================================
 # DISTRO DETECTION
 # ============================================================
 _fsx_distro_id=$(grep -oP '^ID=\K\w+' /etc/os-release 2>/dev/null)
@@ -156,18 +172,37 @@ _source_plugin zsh-history-substring-search
 # después de fzf/zoxide, para que envuelva todos los widgets ZLE.
 
 # ============================================================
-# OH-MY-POSH — cached init
+# PROMPT — oh-my-posh | powerlevel10k (según _fsx_prompt_engine)
 # ============================================================
-_omp_cache="$XDG_CACHE_HOME/oh-my-posh/init.zsh"
-_omp_config="$DOTFILES_DIR/oh-my-posh/probua.minimal.omp.json"
-if command -v oh-my-posh >/dev/null 2>&1; then
-  if [[ ! -f "$_omp_cache" || "$_omp_config" -nt "$_omp_cache" ]]; then
-    mkdir -p "$(dirname "$_omp_cache")"
-    oh-my-posh init zsh --config "$_omp_config" > "$_omp_cache"
+if [[ "$_fsx_prompt_engine" == "p10k" ]]; then
+  # powerlevel10k — resolución multi-path del tema
+  #   /usr/share/...            → Arch (pacman)
+  #   $HOMEBREW_PREFIX/share/... → Debian (brew)
+  #   ~/.local/share/...         → Fedora / clone manual
+  for _p10k_theme in \
+    "/usr/share/zsh-theme-powerlevel10k/powerlevel10k.zsh-theme" \
+    "${HOMEBREW_PREFIX:+$HOMEBREW_PREFIX/share/powerlevel10k/powerlevel10k.zsh-theme}" \
+    "$HOME/.local/share/zsh/plugins/powerlevel10k/powerlevel10k.zsh-theme" \
+  ; do
+    [[ -n "$_p10k_theme" && -f "$_p10k_theme" ]] && { source "$_p10k_theme"; break; }
+  done
+  unset _p10k_theme
+  # Config del usuario; si falta, p10k lanza el wizard en el primer arranque.
+  [[ -r "$HOME/.p10k.zsh" ]] && source "$HOME/.p10k.zsh"
+else
+  # oh-my-posh — cached init
+  _omp_cache="$XDG_CACHE_HOME/oh-my-posh/init.zsh"
+  _omp_config="$DOTFILES_DIR/oh-my-posh/probua.minimal.omp.json"
+  if command -v oh-my-posh >/dev/null 2>&1; then
+    if [[ ! -f "$_omp_cache" || "$_omp_config" -nt "$_omp_cache" ]]; then
+      mkdir -p "$(dirname "$_omp_cache")"
+      oh-my-posh init zsh --config "$_omp_config" > "$_omp_cache"
+    fi
+    source "$_omp_cache"
   fi
-  source "$_omp_cache"
+  unset _omp_cache _omp_config
 fi
-unset _omp_cache _omp_config
+unset _fsx_prompt_engine
 
 # ============================================================
 # HISTORIAL DE COMANDOS
@@ -265,7 +300,7 @@ command -v btop &>/dev/null && alias top='btop'
 alias cp='cp -iv'
 alias mv='mv -iv'
 alias rm='rm -Iv'
-alias rmd='rm -rf'
+alias rmd='rm -rfI'
 alias mkdir='mkdir -pv'
 
 # ============================================================
