@@ -6,23 +6,40 @@ Configuración personal de desarrollo para Linux — multi-distro.
 
 ## Stack
 
-| Herramienta | Función |
+| Herramienta | Reemplaza | Para qué sirve |
+|---|---|---|
+| **zsh** | bash | Shell principal — autocompletado avanzado, plugins |
+| **oh-my-posh** (`probua.minimal`) | prompt por defecto | Prompt customizable con info de git e iconos |
+| **lsd** | `ls` | Listado de archivos con iconos, colores, y tree |
+| **neovim + LazyVim** | vim / nano | Editor de código en terminal con plugins auto-gestionados |
+| **bat** | `cat` | Ver archivos con syntax highlighting y números de línea |
+| **btop** | `top` / `htop` | Monitor de sistema con interfaz visual |
+| **fzf** | búsqueda manual | Búsqueda fuzzy interactiva (archivos, historial) |
+| **zoxide** | `cd` | Navegación inteligente — aprende tus directorios más usados |
+| **fd** | `find` | Buscar archivos por nombre, respeta `.gitignore` |
+| **ripgrep** (`rg`) | `grep` | Buscar texto dentro de archivos, respeta `.gitignore` |
+| **fastfetch** | neofetch | Info del sistema al abrir terminal |
+| **kitty** | terminal por defecto | Terminal GPU-acelerada con tema Kanagawa |
+| **JetBrainsMono Nerd Font** | fuente por defecto | Fuente monoespaciada con iconos para prompt y lsd |
+
+### Plugins de zsh
+
+| Plugin | Qué hace |
 |---|---|
-| **zsh** | Shell principal |
-| **oh-my-posh** (`probua.minimal`) | Prompt minimalista con info de git |
-| **lsd** | `ls` con iconos y colores |
-| **neovim + LazyVim** | Editor principal |
-| **bat** | `cat` con syntax highlighting |
-| **btop** | `top` con interfaz visual |
-| **fzf** | Búsqueda fuzzy |
-| **zoxide** | `cd` inteligente con historial |
-| **fd** | `find` más rápido, respeta `.gitignore` |
-| **ripgrep** | `grep` ultrarrápido |
-| **zsh-autosuggestions** | Sugerencias inline del historial |
-| **zsh-syntax-highlighting** | Colores en tiempo real al escribir |
-| **zsh-completions** | Completados extra |
-| **kitty** | Terminal con tema Kanagawa |
-| **fastfetch** | Info del sistema al iniciar |
+| **zsh-autosuggestions** | Sugerencias inline grises del historial |
+| **zsh-syntax-highlighting** | Colorea comandos en tiempo real (verde=válido, rojo=error) |
+| **zsh-completions** | Completados TAB extra |
+| **zsh-history-substring-search** | Buscar historial por substring con ↑/↓ |
+| **pkgfile** | Solo Arch — sugiere qué paquete instalar cuando un comando no existe |
+
+## Requisitos previos
+
+Antes de ejecutar `install.sh`, asegurate de tener:
+
+- **`git`** — para clonar el repo
+- **`curl`** — para descargar herramientas (oh-my-posh, Nerd Fonts, Homebrew en Debian)
+- **`sudo`** — para instalar paquetes y cambiar el shell con `chsh`
+- **Terminal con soporte Nerd Fonts** — kitty, Alacritty, WezTerm, o cualquier emulador que permita configurar la fuente. Sin Nerd Font el prompt y `lsd` muestran caracteres rotos
 
 ## Instalación
 
@@ -44,16 +61,15 @@ exec zsh
 | `./install.sh --doctor` | Verifica la salud de la instalación |
 | `./install.sh --help` | Muestra el uso |
 
-El script detecta tu distro automáticamente y usa el package manager nativo:
+### Detección de distro y package managers
 
-| Distro | Package Manager | Notas |
+El script detecta tu distro automáticamente y usa el package manager correspondiente:
+
+| Distro | Package Manager | Por qué este manager |
 |---|---|---|
-| Arch / CachyOS / EndeavourOS | `pacman` + `paru` (AUR) | Todo desde repos nativos |
-| Fedora | `dnf` | Todo desde repos nativos |
-| Debian / Ubuntu | `apt` + Homebrew | Homebrew para paquetes actualizados |
-
-> Requiere `sudo` para instalar paquetes y `chsh`.
-> Neovim abre y lazy.nvim instala todos los plugins automáticamente en el primer inicio.
+| Arch / CachyOS / EndeavourOS | `pacman` + `paru` (AUR) | Repos nativos siempre actualizados — no necesita nada extra |
+| Fedora | `dnf` | Repos nativos con versiones recientes |
+| Debian / Ubuntu | `apt` + Homebrew | `apt` tiene versiones muy atrasadas de herramientas de desarrollo (bat, fd, ripgrep, etc.). Homebrew se instala como fallback para obtener versiones actualizadas sin agregar PPAs manuales |
 
 ## Estructura
 
@@ -121,8 +137,29 @@ _source_plugin zsh-autosuggestions
 
 ### Symlinks en vez de copias
 
-`install.sh` crea symlinks — los cambios en el repo se reflejan inmediatamente sin re-ejecutar nada.
-Si ya existe un archivo en el destino, se crea un backup con timestamp (`.bak.YYYYMMDD-HHMMSS`) para evitar sobreescrituras.
+`install.sh` crea symlinks, no copias. Esto tiene ventajas concretas:
+
+- **El repo es la única fuente de verdad** — los archivos en `~/.config/` apuntan directamente al repo clonado
+- **Los cambios se reflejan inmediatamente** — editás un archivo en el repo y la config ya está actualizada, sin re-ejecutar nada
+- **`git diff` trackea todo directamente** — cualquier cambio en tu config aparece en el diff del repo
+- **Reproducibilidad total** — clonar en una máquina nueva + `./install.sh` = exactamente la misma configuración
+- **Backups automáticos** — si ya existe un archivo en el destino, se crea un backup con timestamp (`.bak.YYYYMMDD-HHMMSS`) antes de sobreescribirlo
+
+### Overrides locales con `local.zsh`
+
+Para configuraciones personales que no deberían ir al repo, usá `zsh/local.zsh`:
+
+```zsh
+# Crear tu archivo local (no trackeado por git):
+cp zsh/local.zsh.example zsh/local.zsh
+```
+
+Este archivo se carga automáticamente al final de `.zshrc` pero está en `.gitignore`. Ideal para:
+
+- Aliases personales o de trabajo
+- Configuración de SSH específica de cada máquina
+- Entradas de `PATH` que varían por entorno (e.g. SDKs, herramientas internas)
+- API keys y tokens que no deben ir a un repo
 
 ## Lo que configura `.zshrc`
 
@@ -186,13 +223,57 @@ pacnews         # buscar .pacnew/.pacsave (solo Arch)
 
 ## Neovim / LazyVim
 
-Config basada en el starter de [LazyVim](https://lazyvim.org). Los plugins se instalan automáticamente al abrir nvim por primera vez.
+Config basada en el starter de [LazyVim](https://lazyvim.org). Es una instalación **vanilla de LazyVim** — sin plugins custom agregados todavía.
+
+### Primer inicio
+
+Al abrir `nvim` por primera vez, `lazy.nvim` detecta los plugins definidos y los instala automáticamente. No se necesita intervención manual.
+
+### Agregar plugins custom
+
+Para agregar plugins, creá archivos `.lua` en `nvim/lua/plugins/`. Cualquier archivo en ese directorio es cargado automáticamente por lazy.nvim:
+
+```lua
+-- nvim/lua/plugins/example.lua
+return {
+  { "user/plugin-name", opts = {} },
+}
+```
+
+### Configuración
+
+Los archivos en `nvim/lua/config/` están listos para customizar:
+
+- `keymaps.lua` — atajos de teclado personalizados
+- `options.lua` — opciones de Neovim (números de línea, tabs, etc.)
+- `autocmds.lua` — autocommands (acciones al abrir/guardar archivos, etc.)
+
+### Formateo Lua
+
+El proyecto usa **StyLua** para formatear archivos Lua. La configuración está en `nvim/stylua.toml`:
+
+- Indent: 2 espacios
+- Ancho de columna: 120 caracteres
 
 ## Notas
 
-- Los configs usan **XDG Base Directories** — nada se escribe fuera de `~/.config`, `~/.cache`, `~/.local`.
-- Rutas de plugins se resuelven automáticamente sin importar el package manager.
-- El prompt oh-my-posh requiere una **Nerd Font** (e.g. JetBrainsMono Nerd Font) — el instalador ofrece descargarla y auto-detecta la última versión desde GitHub (fallback: v3.3.0).
-- `bun` se configura automáticamente si está instalado en `~/.bun`.
-- `zoxide` reemplaza `cd` con navegación inteligente por historial.
-- Homebrew **solo se instala en Debian/Ubuntu** como fallback para paquetes actualizados.
+### XDG Base Directories
+
+Todas las configuraciones usan **XDG Base Directories** — nada se escribe fuera de `~/.config`, `~/.cache`, `~/.local`. Esto mantiene el home limpio y facilita backups.
+
+### Resolución de plugins
+
+Las rutas de plugins se resuelven automáticamente sin importar el package manager. El `.zshrc` busca en múltiples paths hasta encontrar cada plugin (ver sección "Plugins con resolución multi-path").
+
+### Nerd Font
+
+El prompt oh-my-posh y `lsd` requieren una **Nerd Font** para mostrar iconos correctamente. El instalador ofrece descargar **JetBrainsMono Nerd Font** automáticamente y auto-detecta la última versión desde GitHub (fallback: v3.3.0).
+
+### Homebrew (solo Debian/Ubuntu)
+
+Homebrew se instala **únicamente en Debian/Ubuntu** como fallback. Las versiones de `apt` para herramientas como bat, fd, ripgrep, y fzf suelen estar muy atrasadas. Homebrew permite tener versiones actualizadas sin agregar PPAs manualmente.
+
+### Herramientas opcionales
+
+- **bun** — se configura automáticamente si está instalado en `~/.bun` (agrega al PATH y configura completions)
+- **zoxide** — reemplaza `cd` con navegación inteligente basada en frecuencia de uso. Después de unos días, `z proyecto` te lleva a `~/dev/proyecto` sin importar dónde estés
