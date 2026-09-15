@@ -317,7 +317,7 @@ alias hg='history | grep'
 alias grep='grep --color=auto'
 alias reload='source ~/.zshrc && echo "zshrc recargado"'
 alias zshconfig='nvim ~/.zshrc'
-alias apagar='sudo shutdown -h now'
+alias apagar='systemctl poweroff'
 alias reiniciar='sudo reboot'
 
 # ============================================================
@@ -350,6 +350,8 @@ alias gca='git commit --amend'
 alias gp='git push'
 alias gpl='git pull'
 alias gf='git fetch'
+alias gi='git init'
+alias gm='git merge'
 alias gl='git log --oneline --graph --decorate --all'
 alias gd='git diff'
 alias gds='git diff --staged'
@@ -367,6 +369,35 @@ fh()        { history | grep --color=auto "$1" }
 gclone()    { git clone "$1" && cd "$(basename "$1" .git)" }
 bak()       { cp "$1"{,.bak} && echo "Backup: $1.bak" }
 whichport() { ss -tulpn | grep ":$1" }
+
+freeport() {
+  local port="${1:-}"
+  [[ -n "$port" ]] || { echo "Uso: freeport <puerto>"; return 1; }
+
+  echo "[1] ss"
+  sudo ss -lptn "sport = :$port" || true
+
+  echo "[2] lsof"
+  lsof -nP -iTCP:"$port" || true
+
+  echo "[3] fuser"
+  sudo fuser -v "${port}/tcp" || true
+
+  local pids
+  pids="$(lsof -tiTCP:"$port" 2>/dev/null | sort -u || true)"
+  if [[ -z "$pids" ]]; then
+    pids="$(sudo fuser -n tcp "$port" 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+$' | sort -u || true)"
+  fi
+
+  if [[ -n "$pids" ]]; then
+    echo "Matando: $pids"
+    kill -15 $pids 2>/dev/null || true
+    sleep 1
+    kill -9 $pids 2>/dev/null || true
+  else
+    echo "No encontré PID directo en el puerto $port"
+  fi
+}
 
 extract() {
   if [[ -f "$1" ]]; then
