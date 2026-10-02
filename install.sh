@@ -502,6 +502,47 @@ omarchy_install_group() {
   fi
 }
 
+omarchy_install_brew_tools() {
+  if ! confirm "¿Instalar Homebrew (si falta) y Bold Brew (bbrew)?"; then
+    warn "Homebrew / bbrew installation skipped"
+    return
+  fi
+
+  if ! command -v brew &>/dev/null; then
+    info "Instalando Homebrew..."
+    if ! NONINTERACTIVE=1 /bin/bash -c \
+      "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"; then
+      warn "Homebrew installation failed — skipping bbrew"
+      return
+    fi
+
+    # Activar brew en esta sesión
+    if [[ -x /home/linuxbrew/.linuxbrew/bin/brew ]]; then
+      eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+    elif [[ -x /opt/homebrew/bin/brew ]]; then
+      eval "$(/opt/homebrew/bin/brew shellenv)"
+    else
+      warn "Homebrew instalado pero no encontrado en rutas conocidas"
+      return
+    fi
+    info "Brew: $(brew --version | head -1)"
+  else
+    warn "Homebrew ya instalado ($(brew --version | head -1))"
+  fi
+
+  if brew list bbrew &>/dev/null; then
+    warn "bbrew ya instalado, omitiendo."
+    return
+  fi
+
+  info "Instalando bbrew via brew..."
+  if ! brew install bbrew; then
+    warn "brew install bbrew falló — continuando sin bbrew"
+    return
+  fi
+  info "bbrew instalado: $(bbrew --version 2>/dev/null || echo 'instalado')"
+}
+
 omarchy_install_packages() {
   if [[ "$DISTRO_FAMILY" != "arch" ]]; then
     warn "Omarchy targets Arch-based systems (detected: $DISTRO_FAMILY) — attempting pacman anyway"
@@ -556,6 +597,8 @@ omarchy_main() {
 
   omarchy_install_packages
   echo ""
+  omarchy_install_brew_tools
+  echo ""
   omarchy_append_bashrc
 
   echo ""
@@ -578,6 +621,10 @@ omarchy_dry_run() {
                "shell-extras:${OMARCHY_GROUP_EXTRAS[*]}"; do
     info "  - ${group%%:*}: ${group#*:}"
   done
+  echo ""
+  info "[DRY-RUN] brew-tools group: confirm '¿Instalar Homebrew (si falta) y Bold Brew (bbrew)?'"
+  info "  - If accepted and brew missing: NONINTERACTIVE Homebrew install + shellenv activation"
+  info "  - Then: brew install bbrew (warn if already installed)"
   echo ""
 
   if omarchy_bashrc_block_present; then
