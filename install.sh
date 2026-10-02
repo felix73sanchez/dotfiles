@@ -310,6 +310,9 @@ usage() {
   echo "  ./install.sh --dry-run    Mostrar qué se haría sin ejecutar"
   echo "  ./install.sh --uninstall  Eliminar symlinks creados"
   echo "  ./install.sh --doctor     Verificar estado de la instalación"
+  echo "  ./install.sh --omarchy    Instalar sobre Omarchy (bash, aditivo)"
+  echo "  ./install.sh --omarchy --dry-run   Dry-run del path Omarchy"
+  echo "  ./install.sh --omarchy --doctor    Doctor del path Omarchy"
   echo "  ./install.sh --help       Mostrar este mensaje"
   echo ""
 }
@@ -460,13 +463,212 @@ doctor() {
   fi
 }
 
+# ─── OMARCHY PATH ───────────────────────────────────────────
+
+OMARCHY_BLOCK_START='# >>> fsx dotfiles (omarchy) >>>'
+OMARCHY_BLOCK_END='# <<< fsx dotfiles (omarchy) <<<'
+
+# Package groups for the Omarchy path — each group gets its own confirm
+OMARCHY_GROUP_COMPLETION=(bash-completion)
+OMARCHY_GROUP_FUZZY=(fzf fd ripgrep)
+OMARCHY_GROUP_EXTRAS=(zoxide btop bat)
+
+omarchy_missing_pkgs() {
+  local -a missing=()
+  local pkg
+  for pkg in "$@"; do
+    pacman -Q "$pkg" &>/dev/null || missing+=("$pkg")
+  done
+  echo "${missing[@]}"
+}
+
+omarchy_install_group() {
+  local label="$1"; shift
+  local -a requested=("$@")
+  local missing
+  missing="$(omarchy_missing_pkgs "${requested[@]}")"
+
+  if [[ -z "$missing" ]]; then
+    warn "$label: already installed (${requested[*]}), skipping"
+    return
+  fi
+
+  info "$label: missing → $missing"
+  if confirm "Install group '$label' ($missing)?"; then
+    sudo pacman -S --needed --noconfirm $missing
+    info "Installed: $missing"
+  else
+    warn "Skipped group: $label"
+  fi
+}
+
+omarchy_install_packages() {
+  if [[ "$DISTRO_FAMILY" != "arch" ]]; then
+    warn "Omarchy targets Arch-based systems (detected: $DISTRO_FAMILY) — attempting pacman anyway"
+  fi
+
+  if ! confirm "Install additive shell packages (bash-completion, fzf, fd, ripgrep, zoxide, btop, bat)?"; then
+    warn "Package installation skipped"
+    return
+  fi
+
+  omarchy_install_group "completion" "${OMARCHY_GROUP_COMPLETION[@]}"
+  omarchy_install_group "fuzzy-tools" "${OMARCHY_GROUP_FUZZY[@]}"
+  omarchy_install_group "shell-extras" "${OMARCHY_GROUP_EXTRAS[@]}"
+}
+
+omarchy_bashrc_block_present() {
+  [[ -f "$HOME/.bashrc" ]] && grep -qF "$OMARCHY_BLOCK_START" "$HOME/.bashrc"
+}
+
+omarchy_append_bashrc() {
+  if omarchy_bashrc_block_present; then
+    warn "Managed block already present in ~/.bashrc — not duplicating"
+    return
+  fi
+
+  if ! confirm "Append managed source block to ~/.bashrc?"; then
+    warn "~/.bashrc left untouched"
+    return
+  fi
+
+  touch "$HOME/.bashrc"
+  {
+    echo ""
+    echo "$OMARCHY_BLOCK_START"
+    echo "# Added by FSX dotfiles (install.sh --omarchy). Safe to remove this block."
+    echo "if [[ -f \"$DOTFILES_DIR/bash/fsx.bash\" ]]; then"
+    echo "  source \"$DOTFILES_DIR/bash/fsx.bash\""
+    echo "fi"
+    echo "$OMARCHY_BLOCK_END"
+  } >> "$HOME/.bashrc"
+  info "Appended managed block to ~/.bashrc"
+}
+
+omarchy_main() {
+  echo ""
+  info "FSX Dotfiles — Omarchy bootstrap"
+  info "================================"
+  echo ""
+
+  detect_distro
+  echo ""
+
+  omarchy_install_packages
+  echo ""
+  omarchy_append_bashrc
+
+  echo ""
+  echo -e "${GREEN}╔══════════════════════════════════════════════════╗${NC}"
+  echo -e "${GREEN}║   Omarchy install complete.                      ║${NC}"
+  echo -e "${GREEN}║   Run: exec bash  (or open a new terminal)       ║${NC}"
+  echo -e "${GREEN}╚══════════════════════════════════════════════════╝${NC}"
+}
+
+omarchy_dry_run() {
+  detect_distro
+  echo ""
+  info "Modo dry-run (omarchy) — no se realizarán cambios"
+  echo ""
+
+  info "[DRY-RUN] Package groups (pacman -S --needed, per-group confirm):"
+  local group
+  for group in "completion:${OMARCHY_GROUP_COMPLETION[*]}" \
+               "fuzzy-tools:${OMARCHY_GROUP_FUZZY[*]}" \
+               "shell-extras:${OMARCHY_GROUP_EXTRAS[*]}"; do
+    info "  - ${group%%:*}: ${group#*:}"
+  done
+  echo ""
+
+  if omarchy_bashrc_block_present; then
+    info "[DRY-RUN] ~/.bashrc: managed block already present (would not duplicate)"
+  else
+    info "[DRY-RUN] ~/.bashrc: would append block:"
+    info "  $OMARCHY_BLOCK_START"
+    info "  source \"$DOTFILES_DIR/bash/fsx.bash\""
+    info "  $OMARCHY_BLOCK_END"
+  fi
+  echo ""
+  info "[DRY-RUN] No chsh, no oh-my-posh, no nvim/fastfetch/kitty/alacritty, no font changes"
+}
+
+omarchy_doctor() {
+  info "FSX Dotfiles — Doctor (omarchy)"
+  echo ""
+
+  local passed=0
+  local total=0
+  check_pass() { echo -e "${GREEN}  ✓ $1${NC}"; passed=$((passed + 1)); total=$((total + 1)); }
+  check_fail() { echo -e "${RED}  ✗ $1${NC}"; total=$((total + 1)); }
+
+  info "Source block:"
+  if omarchy_bashrc_block_present; then
+    check_pass "managed block in ~/.bashrc"
+  else
+    check_fail "managed block missing in ~/.bashrc"
+  fi
+  [[ -f "$DOTFILES_DIR/bash/fsx.bash" ]] \
+    && check_pass "bash/fsx.bash exists" \
+    || check_fail "bash/fsx.bash missing"
+  echo ""
+
+  info "Packages:"
+  local pkg
+  for pkg in bash-completion fzf fd ripgrep zoxide btop bat; do
+    pacman -Q "$pkg" &>/dev/null \
+      && check_pass "$pkg" \
+      || check_fail "$pkg"
+  done
+  echo ""
+
+  echo -e "${GREEN}──────────────────────────────────────────────${NC}"
+  if [[ "$passed" -eq "$total" ]]; then
+    info "$passed/$total verificaciones pasaron ✓"
+  else
+    warn "$passed/$total verificaciones pasaron"
+  fi
+}
+
 # ─── RUN ────────────────────────────────────────────────────
 
-case "${1:-}" in
-  --dry-run)   dry_run ;;
-  --uninstall) uninstall ;;
-  --doctor)    doctor ;;
-  --help|-h)   usage ;;
-  "")          main ;;
-  *)           error "Opción desconocida: $1. Usá --help." ;;
-esac
+OMARCHY=0
+DRY_RUN=0
+ACTION=""
+for arg in "$@"; do
+  case "$arg" in
+    --omarchy)   OMARCHY=1 ;;
+    --dry-run)   DRY_RUN=1 ;;
+    --uninstall) ACTION="uninstall" ;;
+    --doctor)    ACTION="doctor" ;;
+    --help|-h)   ACTION="help" ;;
+    "")          ;;
+    *)           error "Opción desconocida: $arg. Usá --help." ;;
+  esac
+done
+
+if [[ "$OMARCHY" -eq 1 ]]; then
+  if [[ "$ACTION" == "doctor" ]]; then
+    omarchy_doctor
+  elif [[ "$DRY_RUN" -eq 1 ]]; then
+    omarchy_dry_run
+  elif [[ -z "$ACTION" ]]; then
+    omarchy_main
+  elif [[ "$ACTION" == "uninstall" ]]; then
+    uninstall
+  else
+    usage
+  fi
+else
+  case "$ACTION" in
+    doctor)    doctor ;;
+    uninstall) uninstall ;;
+    help)      usage ;;
+    "")
+      if [[ "$DRY_RUN" -eq 1 ]]; then
+        dry_run
+      else
+        main
+      fi
+      ;;
+  esac
+fi
