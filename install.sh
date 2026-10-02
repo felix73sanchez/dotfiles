@@ -47,6 +47,9 @@ main() {
   echo ""
 
   install_packages
+  echo ""
+  install_brew_tools
+  echo ""
   install_prompt_engine
   set_default_shell
   create_symlinks
@@ -336,6 +339,11 @@ dry_run() {
     local dest="${pair##*|}"
     info "[DRY-RUN] $src → $dest"
   done
+
+  echo ""
+  info "[DRY-RUN] brew-tools group: confirm '¿Instalar Homebrew (si falta) y Bold Brew (bbrew)?'"
+  info "  - If accepted and brew missing: NONINTERACTIVE Homebrew install + shellenv activation"
+  info "  - Then: brew install bbrew (warn if already installed)"
 }
 
 uninstall() {
@@ -502,7 +510,7 @@ omarchy_install_group() {
   fi
 }
 
-omarchy_install_brew_tools() {
+install_brew_tools() {
   if ! confirm "¿Instalar Homebrew (si falta) y Bold Brew (bbrew)?"; then
     warn "Homebrew / bbrew installation skipped"
     return
@@ -597,7 +605,7 @@ omarchy_main() {
 
   omarchy_install_packages
   echo ""
-  omarchy_install_brew_tools
+  install_brew_tools
   echo ""
   omarchy_append_bashrc
 
