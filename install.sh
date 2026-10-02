@@ -311,7 +311,8 @@ usage() {
   echo ""
   echo "  ./install.sh              Instalar todo"
   echo "  ./install.sh --dry-run    Mostrar qué se haría sin ejecutar"
-  echo "  ./install.sh --uninstall  Eliminar symlinks creados"
+  echo "  ./install.sh --uninstall  Eliminar todo lo creado por el installer"
+  echo "  ./install.sh --uninstall --dry-run  Listar acciones de desinstalación sin ejecutar"
   echo "  ./install.sh --doctor     Verificar estado de la instalación"
   echo "  ./install.sh --omarchy    Instalar sobre Omarchy (bash, aditivo)"
   echo "  ./install.sh --omarchy --dry-run   Dry-run del path Omarchy"
@@ -347,6 +348,14 @@ dry_run() {
 }
 
 uninstall() {
+  local dry=0
+  [[ "${DRY_RUN:-0}" -eq 1 ]] && dry=1
+
+  if [[ "$dry" -eq 1 ]]; then
+    info "Modo dry-run — no se realizarán cambios"
+    echo ""
+  fi
+
   info "Desinstalando symlinks..."
 
   local -a targets=(
@@ -363,9 +372,13 @@ uninstall() {
       local real
       real="$(readlink -f "$target")"
       if [[ "$real" == "$DOTFILES_DIR"/* ]]; then
-        rm "$target"
-        info "Eliminado: $target"
-        ((removed++))
+        if [[ "$dry" -eq 1 ]]; then
+          info "[DRY-RUN] rm $target → $real"
+        else
+          rm "$target"
+          info "Eliminado: $target"
+        fi
+        removed=$((removed + 1))
       else
         warn "Symlink no apunta a dotfiles, omitido: $target → $real"
       fi
@@ -375,7 +388,102 @@ uninstall() {
   if [[ "$removed" -eq 0 ]]; then
     warn "No se encontraron symlinks para eliminar"
   else
-    info "$removed symlink(s) eliminado(s)"
+    info "$removed symlink(s) $([[ $dry -eq 1 ]] && echo 'a eliminar' || echo 'eliminado(s)')"
+  fi
+  echo ""
+
+  # ─── ~/.bashrc managed block ───
+  info "Bloque administrado en ~/.bashrc:"
+  if [[ -f "$HOME/.bashrc" ]] && grep -qF "$OMARCHY_BLOCK_START" "$HOME/.bashrc"; then
+    local block
+    block="$(awk -v s="$OMARCHY_BLOCK_START" -v e="$OMARCHY_BLOCK_END" \
+      'index($0,s){f=1} f{print} index($0,e){f=0}' "$HOME/.bashrc")"
+    echo "$block"
+    echo ""
+    if [[ "$dry" -eq 1 ]]; then
+      info "[DRY-RUN] Eliminar bloque anterior de ~/.bashrc (vía temp + mv)"
+    else
+      local tmp
+      tmp="$(mktemp)"
+      awk -v s="$OMARCHY_BLOCK_START" -v e="$OMARCHY_BLOCK_END" '
+        index($0,s){f=1; next}
+        index($0,e){f=0; next}
+        !f
+      ' "$HOME/.bashrc" > "$tmp"
+      mv "$tmp" "$HOME/.bashrc"
+      info "Bloque eliminado de ~/.bashrc"
+    fi
+  else
+    warn "No se encontró bloque administrado en ~/.bashrc"
+  fi
+  echo ""
+
+  # ─── Prompt engine marker ───
+  local marker="$HOME/.config/zsh/prompt-engine"
+  info "Marcador de motor de prompt:"
+  if [[ -f "$marker" ]]; then
+    if [[ "$dry" -eq 1 ]]; then
+      info "[DRY-RUN] rm $marker"
+    else
+      rm "$marker"
+      info "Eliminado: $marker"
+    fi
+  else
+    warn "No existe: $marker"
+  fi
+  echo ""
+
+  # ─── XDG zsh dirs (only if empty, only with confirm) ───
+  info "Directorios XDG de zsh:"
+  local -a xdg_dirs=(
+    "$HOME/.cache/zsh"
+    "$HOME/.local/state/zsh"
+    "$HOME/.config/zsh"
+  )
+  local d
+  for d in "${xdg_dirs[@]}"; do
+    if [[ -d "$d" ]]; then
+      if [[ -z "$(ls -A "$d")" ]]; then
+        if [[ "$dry" -eq 1 ]]; then
+          info "[DRY-RUN] rmdir $d (vacío, requiere confirm)"
+        elif confirm "¿Eliminar directorio vacío $d?"; then
+          rmdir "$d" && info "Eliminado: $d"
+        else
+          warn "Omitido: $d"
+        fi
+      else
+        warn "No vacío, se conserva: $d"
+      fi
+    fi
+  done
+  echo ""
+
+  # ─── Intentionally left behind ───
+  info "Se deja intencionalmente instalado (NO se elimina):"
+  echo "  - Homebrew / Linuxbrew — puede usarse para otras cosas"
+  echo "  - bbrew (Bold Brew)   — herramienta de usuario; ver opción abajo"
+  echo "  - Paquetes pacman (zsh, lsd, bat, btop, fzf, zoxide, fd, ripgrep,"
+  echo "    fastfetch, zsh-autosuggestions, zsh-syntax-highlighting, ...)"
+  echo "    Razón: pueden pre-existir al installer (pacman -S --needed) y su"
+  echo "    remoción puede romper el sistema u Omarchy."
+  echo "  - oh-my-posh / powerlevel10k, Nerd Fonts, chsh a zsh"
+  echo ""
+
+  # ─── Optional: bbrew ───
+  if command -v brew &>/dev/null && brew list bbrew &>/dev/null; then
+    if [[ "$dry" -eq 1 ]]; then
+      info "[DRY-RUN] Opcional: brew uninstall bbrew (pregunta interactiva, default NO)"
+    elif confirm "¿Desinstalar también bbrew via brew uninstall?"; then
+      brew uninstall bbrew && info "bbrew desinstalado" || warn "brew uninstall bbrew falló"
+    else
+      warn "bbrew conservado"
+    fi
+  fi
+
+  if [[ "$dry" -eq 1 ]]; then
+    info "Dry-run finalizado — no se modificó nada"
+  else
+    info "Desinstalación completa"
   fi
 }
 
