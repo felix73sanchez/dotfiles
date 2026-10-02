@@ -48,7 +48,7 @@ fi
 # ============================================================
 _fsx_distro_id=$(grep -oP '^ID=\K\w+' /etc/os-release 2>/dev/null)
 case "$_fsx_distro_id" in
-  arch|cachyos|endeavouros|manjaro) _fsx_distro_family="arch"    ;;
+  arch|cachyos|endeavouros|manjaro|omarchy) _fsx_distro_family="arch"    ;;
   fedora)                           _fsx_distro_family="fedora"  ;;
   debian|ubuntu|pop|linuxmint|zorin) _fsx_distro_family="debian" ;;
   *)                                _fsx_distro_family="unknown" ;;

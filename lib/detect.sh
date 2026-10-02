@@ -11,7 +11,7 @@ detect_distro() {
   DISTRO_NAME=$(. /etc/os-release && echo "$PRETTY_NAME")
 
   case "$DISTRO_ID" in
-    arch|cachyos|endeavouros|manjaro)
+    arch|cachyos|endeavouros|manjaro|omarchy)
       DISTRO_FAMILY="arch"
       ;;
     fedora)
