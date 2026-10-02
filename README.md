@@ -90,6 +90,20 @@ Cada decisión (cada grupo de paquetes, el bloque en `~/.bashrc`, brew+bbrew) pi
 | **zsh-history-substring-search** | Buscar historial por substring con ↑/↓ |
 | **pkgfile** | Solo Arch — sugiere el paquete de un comando faltante |
 
+#### Equivalente en bash (path Omarchy)
+
+El path Omarchy usa **blesh** (`ble.sh`) como equivalente de autosugerencias + resaltado:
+
+| Plugin de zsh | Equivalente en bash (Omarchy) |
+|---|---|
+| zsh-autosuggestions | blesh (autosugerencias inline) |
+| zsh-syntax-highlighting | blesh (resaltado de sintaxis) |
+| zsh-completions | bash-completion |
+| zsh-history-substring-search | fzf (`Ctrl+R`) |
+| pkgfile | pkgfile (mismo paquete, Arch) |
+
+blesh es un grupo opcional de confirm propio en `install.sh --omarchy` (paru/yay `blesh-git`, o build desde GitHub). En `bash/fsx.bash` se carga de forma silenciosa y solo en shells interactivas; si no está instalado, no pasa nada.
+
 ### Package managers por distro (path normal)
 
 | Distro | Manager | Nota |

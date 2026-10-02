@@ -659,6 +659,62 @@ install_brew_tools() {
   info "bbrew instalado: $(bbrew --version 2>/dev/null || echo 'instalado')"
 }
 
+# blesh = bash equivalent of zsh-autosuggestions + zsh-syntax-highlighting
+install_blesh() {
+  if ! confirm "¿Instalar blesh (autosugerencias + resaltado de sintaxis en bash)?"; then
+    warn "blesh installation skipped"
+    return
+  fi
+
+  if pacman -Q blesh &>/dev/null || pacman -Q blesh-git &>/dev/null; then
+    warn "blesh ya instalado (pacman), omitiendo"
+  elif command -v paru &>/dev/null; then
+    info "Instalando blesh via paru (AUR)..."
+    paru -S --needed blesh-git || warn "paru -S blesh-git falló"
+  elif command -v yay &>/dev/null; then
+    info "Instalando blesh via yay (AUR)..."
+    yay -S --needed blesh-git || warn "yay -S blesh-git falló"
+  elif command -v make &>/dev/null && command -v git &>/dev/null; then
+    info "Sin AUR helper — clonando y compilando ble.sh desde GitHub..."
+    local tmp
+    tmp="$(mktemp -d)"
+    if git clone --depth=1 https://github.com/akinomyoga/ble.sh "$tmp/ble.sh" \
+      && make -C "$tmp/ble.sh" install PREFIX="$HOME/.local"; then
+      info "blesh instalado en ~/.local/share/blesh"
+    else
+      warn "Build/install de ble.sh falló — continuando sin blesh"
+    fi
+    rm -rf "$tmp"
+  else
+    warn "Sin paru/yay ni make+git — no se puede instalar blesh; continuando sin él"
+    return
+  fi
+
+  # Verify installation
+  local found=""
+  local -a candidates=(
+    /usr/share/blesh/ble.sh
+    /usr/local/share/blesh/ble.sh
+    "$HOME/.local/share/blesh/ble.sh"
+  )
+  local p
+  for p in "${candidates[@]}"; do
+    if [[ -f "$p" ]]; then
+      found="$p"
+      break
+    fi
+  done
+
+  if [[ -n "$found" ]]; then
+    info "blesh verificado: $found"
+  else
+    warn "blesh no encontrado en rutas conocidas tras la instalación:"
+    warn "  - /usr/share/blesh/ble.sh"
+    warn "  - /usr/local/share/blesh/ble.sh"
+    warn "  - ~/.local/share/blesh/ble.sh"
+  fi
+}
+
 omarchy_install_packages() {
   if [[ "$DISTRO_FAMILY" != "arch" ]]; then
     warn "Omarchy targets Arch-based systems (detected: $DISTRO_FAMILY) — attempting pacman anyway"
@@ -715,6 +771,8 @@ omarchy_main() {
   echo ""
   install_brew_tools
   echo ""
+  install_blesh
+  echo ""
   omarchy_append_bashrc
 
   echo ""
@@ -741,6 +799,8 @@ omarchy_dry_run() {
   info "[DRY-RUN] brew-tools group: confirm '¿Instalar Homebrew (si falta) y Bold Brew (bbrew)?'"
   info "  - If accepted and brew missing: NONINTERACTIVE Homebrew install + shellenv activation"
   info "  - Then: brew install bbrew (warn if already installed)"
+  info "[DRY-RUN] blesh group: confirm '¿Instalar blesh (autosugerencias + resaltado de sintaxis en bash)?'"
+  info "  - Skip if pacman has blesh/blesh-git; else paru/yay -S --needed blesh-git; else clone+build from GitHub (make+git); else warn and skip"
   echo ""
 
   if omarchy_bashrc_block_present; then

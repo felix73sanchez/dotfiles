@@ -55,6 +55,34 @@ if [[ -d "$HOME/.bun" ]]; then
 fi
 
 # ============================================================
+# BLESH — autosuggestions + syntax highlighting
+# (bash equivalent of zsh-autosuggestions + zsh-syntax-highlighting)
+# Interactive shells only; silent when not installed.
+# ============================================================
+if [[ $- == *i* ]]; then
+  _fsx_blesh=""
+  for _fsx_blesh_candidate in \
+    /usr/share/blesh/ble.sh \
+    /usr/local/share/blesh/ble.sh \
+    "$HOME/.local/share/blesh/ble.sh"; do
+    if [[ -f "$_fsx_blesh_candidate" ]]; then
+      _fsx_blesh="$_fsx_blesh_candidate"
+      break
+    fi
+  done
+
+  if [[ -z "$_fsx_blesh" ]] && command -v blesh-share &>/dev/null; then
+    _fsx_blesh_share="$(blesh-share 2>/dev/null)" || true
+    [[ -n "$_fsx_blesh_share" && -f "$_fsx_blesh_share/ble.sh" ]] \
+      && _fsx_blesh="$_fsx_blesh_share/ble.sh"
+    unset _fsx_blesh_share
+  fi
+
+  [[ -n "$_fsx_blesh" ]] && source "$_fsx_blesh"
+  unset _fsx_blesh _fsx_blesh_candidate
+fi
+
+# ============================================================
 # BASH COMPLETION
 # ============================================================
 if [[ -f /usr/share/bash-completion/bash_completion ]]; then
