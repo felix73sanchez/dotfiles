@@ -1,5 +1,6 @@
 # Local — personal overrides (not tracked by git)
 zsh/local.zsh
+bash/local.bash
 
 # Editor & OS artifacts
 *.swp
