@@ -118,6 +118,10 @@ export LESS="-R --use-color -i -J -W"
 # Omarchy defaults to eza, so ls family maps to eza
 # ============================================================
 alias c='clear'
+alias ..='cd ..'
+alias ...='cd ../..'
+alias ....='cd ../../..'
+
 if command -v eza &>/dev/null; then
   alias ls='eza --group-directories-first'
   alias ll='eza -lah --group-directories-first'
